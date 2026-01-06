@@ -57,7 +57,7 @@ set -- "${POSITIONAL[@]}"
 RATE="${RATE:-50000}"
 CORES=$(nproc 2>/dev/null || echo 2) # Use nproc for Linux
 # For network I/O operations, we can use more parallel processes than CPU cores
-# This is especially helpful on low-core VPS machines
+# This is especially helpful on low-core machines
 if (( CORES <= 2 )); then
   PARALLEL_JOBS=20  # Use 20 parallel jobs on low-core machines
 elif (( CORES <= 4 )); then
@@ -496,4 +496,4 @@ log info "${GREEN}✅ Scan complete! Found ${YELLOW}$GOOD${GREEN} working IPs"
 log info "${CYAN}📁 Results saved: ${GREEN}$OUTFILE"
 log debug "📜 Full log: $LOGFILE"
 rm -rf "$WORKDIR"
-exit 0 
+exit 0

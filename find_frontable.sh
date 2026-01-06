@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Initialize LOGLEVEL with a default value
-LOGLEVEL=debug
+LOGLEVEL=info
 
 ######################## 2 · colour logger ####################################
 if command -v tput >/dev/null; then
@@ -449,18 +449,18 @@ probe_one() {                           # $1 = IP address
         http_code="${BASH_REMATCH[1]}"
       fi
       
-             # For XHTTP, any valid HTTP response code indicates working fronting
-       # Valid codes: 200, 400, 401, 403, 404, 405, 500, etc.
-       # These all prove the server is reachable and responding through the fronting path
-       
-       if [[ "$http_code" =~ ^[1-5][0-9][0-9]$ ]]; then
-         # Got a valid HTTP response code (1xx, 2xx, 3xx, 4xx, 5xx)
-         echo "$ip" >> "$OUTFILE"
-         log info "${GREEN}✔︎ $ip ${GRAY}(XHTTP fronting works, HTTP $http_code)"
-       else
-         # Connection failed - no valid HTTP response
-         log info "${RED}✘ $ip ${GRAY}(TLS OK, but XHTTP connection failed - code: $http_code)"
-       fi
+      # For XHTTP, any valid HTTP response code indicates working fronting
+      # Valid codes: 200, 400, 401, 403, 404, 405, 500, etc.
+      # These all prove the server is reachable and responding through the fronting path
+      
+      if [[ "$http_code" =~ ^[1-5][0-9][0-9]$ ]]; then
+        # Got a valid HTTP response code (1xx, 2xx, 3xx, 4xx, 5xx)
+        echo "$ip" >> "$OUTFILE"
+        log info "${GREEN}✔︎ $ip ${GRAY}(XHTTP fronting works, HTTP $http_code)"
+      else
+        # Connection failed - no valid HTTP response
+        log info "${RED}✘ $ip ${GRAY}(TLS OK, but XHTTP connection failed - code: $http_code)"
+      fi
     fi
   else
     log info "${RED}✘ $ip ${GRAY}(TLS handshake failed)"
@@ -479,4 +479,3 @@ log info "${CYAN}📁 Results saved: ${GREEN}$OUTFILE"
 log debug "📜 Full log: $LOGFILE"
 rm -rf "$WORKDIR"
 exit 0
-
