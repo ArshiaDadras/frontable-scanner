@@ -26,7 +26,7 @@ log() {                                # usage: log <level> <message>
   local colour=$NONE
   case $lvl in debug) colour=$GRAY;; info) colour=$CYAN;;
        warn) colour=$YELLOW;; error) colour=$RED;; success) colour=$GREEN;; esac
-  printf '%s%s %-7s%s : %s\n' "$colour" "$ts" "${lvl^^}" "$NONE" "$*"
+  printf '%s%s %-7s%s : %s\n' "$colour" "$ts" "$(echo "$lvl" | tr '[:lower:]' '[:upper:]')" "$NONE" "$*"
 }
 
 
@@ -51,7 +51,7 @@ while (( $# )); do
     *)       POSITIONAL+=("$1") ; shift ;;
   esac
 done
-set -- "${POSITIONAL[@]}"
+set -- ${POSITIONAL[@]+"${POSITIONAL[@]}"}
 
 ######################## 1 · globals ##########################################
 RATE="${RATE:-50000}"
@@ -158,7 +158,10 @@ mkdir -p "$OUTPUT_DIR"
 
 # Interactive ASN Selection
 log info "🔍 Loading ASN database..."
-readarray -t ALL_ASNS < <(python3 ~/frontable-scanner/py/checker.py)
+ALL_ASNS=()
+while IFS= read -r line; do
+  ALL_ASNS+=("$line")
+done < <(python3 ~/frontable-scanner/py/checker.py)
 
 if [[ ${#ALL_ASNS[@]} -eq 0 ]]; then
   log error "No ASNs found in ~/frontable-scanner/py/ASNs.json. Please ensure the file exists and is correctly formatted."
@@ -287,7 +290,9 @@ while true; do
       # Search for matching ASNs (case-insensitive)
       SEARCH_RESULTS=()
       for asn in "${ALL_ASNS[@]}"; do
-        if [[ "${asn,,}" == *"${SEARCH_TERM,,}"* ]]; then
+        asn_lower=$(echo "$asn" | tr '[:upper:]' '[:lower:]')
+        search_lower=$(echo "$SEARCH_TERM" | tr '[:upper:]' '[:lower:]')
+        if [[ "$asn_lower" == *"$search_lower"* ]]; then
           SEARCH_RESULTS+=("$asn")
         fi
       done
