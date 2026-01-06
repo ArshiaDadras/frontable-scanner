@@ -1,16 +1,33 @@
 #!/usr/bin/env bash
-# find_frontable.sh — colour-log, parallel ASN scanner (macOS Bash 3.2+)
+# find_frontable.sh — colour-log, parallel ASN scanner
 
 set -euo pipefail
 
 # Initialize LOGLEVEL with a default value
 LOGLEVEL=info
 
+######################## OS Detection #########################################
+OS_TYPE="$(uname -s)"
+case "$OS_TYPE" in
+  Darwin)
+    TIMEOUT_CMD="gtimeout"
+    CPU_COUNT=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
+    ;;
+  Linux)
+    TIMEOUT_CMD="timeout"
+    CPU_COUNT=$(nproc 2>/dev/null || echo 2)
+    ;;
+  *)
+    echo "Unsupported OS: $OS_TYPE. This script supports macOS (Darwin) and Linux only."
+    exit 1
+    ;;
+esac
+
 ######################## 2 · colour logger ####################################
 if command -v tput >/dev/null; then
   NONE=$(tput sgr0);   RED=$(tput setaf 1);  GREEN=$(tput setaf 2)
   YELLOW=$(tput setaf 3); CYAN=$(tput setaf 6); GRAY=$(tput setaf 7)
-else                                   # fallback ANSI if TERM is dumb
+else  # fallback ANSI if TERM is dumb
   NONE=$'\033[0m'; RED=$'\033[31m'; GREEN=$'\033[32m'
   YELLOW=$'\033[33m'; CYAN=$'\033[36m'; GRAY=$'\033[37m'
 fi
@@ -18,7 +35,7 @@ fi
 level_val() { case $1 in debug)echo 0;; info)echo 1;; warn)echo 2;; error)echo 3;;
                success)echo 1;; *)echo 99;; esac; }
 
-log() {                                # usage: log <level> <message>
+log() {  # usage: log <level> <message>
   local lvl=$1; shift
   local need=$(level_val "$lvl") cur=$(level_val "$LOGLEVEL")
   (( need<cur )) && return
@@ -28,6 +45,9 @@ log() {                                # usage: log <level> <message>
        warn) colour=$YELLOW;; error) colour=$RED;; success) colour=$GREEN;; esac
   printf '%s%s %-7s%s : %s\n' "$colour" "$ts" "${lvl^^}" "$NONE" "$*"
 }
+
+# Log detected OS
+log info "🖥️  Detected OS: ${GREEN}$OS_TYPE${NONE} (using ${YELLOW}$TIMEOUT_CMD${NONE}, ${YELLOW}$CPU_COUNT${NONE} cores)"
 
 
 ######################## 3 · Ctrl-C handling ##################################
@@ -55,7 +75,7 @@ set -- "${POSITIONAL[@]}"
 
 ######################## 1 · globals ##########################################
 RATE="${RATE:-50000}"
-CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
+CORES=$CPU_COUNT
 # For network I/O operations, we can use more parallel processes than CPU cores
 # This is especially helpful on low-core machines
 if (( CORES <= 2 )); then
@@ -385,22 +405,13 @@ exec > >(tee -a "$LOGFILE") 2>&1
 # Activate debug mode after logging setup is complete
 [[ $LOGLEVEL == debug ]] && set -x
 
-######################## 4 · Homebrew helper ##################################
-# Dependency checks moved to install.sh
-# [[ "$(uname -s)" == Darwin ]] || { echo "macOS only"; exit 1; }
-# command -v brew >/dev/null 2>&1 || { echo "Install Homebrew → brew.sh"; exit 1; }
-# need whois whois; need jq jq; need masscan masscan; need gtimeout coreutils; need openssl openssl@3
-
-######################## 5 · dependency check #################################
-# Removed: All dependency checks will be handled by install.sh
-
-######################## 6 · fetch routed prefixes ############################
+######################## 4 · fetch routed prefixes ############################
 log info "${CYAN}📡 Fetching prefixes for ${GREEN}$ASN_INPUT${CYAN}..."
 python3 ~/frontable-scanner/py/checker.py "$ASN_INPUT" > "$CIDRS"
 
 log info "${GREEN}Found ${YELLOW}$(wc -l <"$CIDRS")${GREEN} CIDR ranges"
 
-######################## 7 · masscan port scan ###################################
+######################## 5 · masscan port scan ###################################
 log info "${CYAN}🚀 Scanning port ${GREEN}$DECOY_PORT${CYAN} ${GRAY}(rate: ${YELLOW}${RATE}pps${GRAY})${CYAN}..."
 sudo -p "masscan needs root → " \
      masscan -iL "$CIDRS" -p"$DECOY_PORT" --rate "$RATE" --banners -oL "$SCAN"
@@ -408,21 +419,21 @@ sudo -p "masscan needs root → " \
 grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' "$SCAN" | sort -u > "$SCAN.ips"
 log info "${GREEN}Found ${YELLOW}$(wc -l <"$SCAN.ips")${GREEN} hosts with port ${YELLOW}$DECOY_PORT${GREEN} open"
 
-######################## 8 · parallel TLS probe ###############################
+######################## 6 · parallel TLS probe ###############################
 log info "${CYAN}🔍 Testing IPs for ${GREEN}$PROTOCOL_TYPE${CYAN} domain fronting ${GRAY}(${YELLOW}${PARALLEL_JOBS}${GRAY} parallel jobs)${CYAN}..."
 : > "$OUTFILE"
 
-probe_one() {                           # $1 = IP address
+probe_one() {  # $1 = IP address
   local ip=$1
   
   # First check TLS handshake
-  if gtimeout 4 openssl s_client -connect "$ip:$DECOY_PORT" -servername "$DECOY_HOST" \
+  if $TIMEOUT_CMD 4 openssl s_client -connect "$ip:$DECOY_PORT" -servername "$DECOY_HOST" \
          < /dev/null 2>/dev/null | grep -q "Server certificate"; then
     
     # Protocol-specific testing
     if [[ "$PROTOCOL_TYPE" == "ws" ]]; then
       # WebSocket test - expect "Bad Request" for non-WebSocket HTTP requests
-      if gtimeout 4 curl --resolve "$DECOY_HOST:$DECOY_PORT:$ip" "$DECOY_FULL_URL" 2>/dev/null | grep -q "Bad Request"; then
+      if $TIMEOUT_CMD 4 curl --resolve "$DECOY_HOST:$DECOY_PORT:$ip" "$DECOY_FULL_URL" 2>/dev/null | grep -q "Bad Request"; then
         echo "$ip" >> "$OUTFILE"
         log info "${GREEN}✔︎ $ip ${GRAY}(WebSocket fronting works)"
       else
@@ -430,7 +441,7 @@ probe_one() {                           # $1 = IP address
       fi
     elif [[ "$PROTOCOL_TYPE" == "xhttp" ]]; then
       # XHTTP test - more comprehensive detection
-      local curl_output=$(gtimeout 6 curl -s -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" \
+      local curl_output=$($TIMEOUT_CMD 6 curl -s -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" \
                          --http2 --resolve "$DECOY_HOST:$DECOY_PORT:$ip" \
                          -H "Host: $DECOY_HOST" \
                          -H "User-Agent: Chrome/120.0.0.0" \
@@ -462,8 +473,8 @@ probe_one() {                           # $1 = IP address
   fi
 }
 
-export -f probe_one log level_val                      # functions only
-export LOGLEVEL DECOY_FULL_URL DECOY_HOST DECOY_PATH DECOY_PORT OUTFILE NONE RED GREEN YELLOW CYAN GRAY PROTOCOL_TYPE  # Export new variables
+export -f probe_one log level_val  # functions only
+export LOGLEVEL DECOY_FULL_URL DECOY_HOST DECOY_PATH DECOY_PORT OUTFILE NONE RED GREEN YELLOW CYAN GRAY PROTOCOL_TYPE TIMEOUT_CMD  # Export new variables
 
 # Use PARALLEL_JOBS instead of CORES for better performance on network I/O
 xargs -n1 -P "$PARALLEL_JOBS" -I{} bash -c 'probe_one "$@"' _ {} < "$SCAN.ips"

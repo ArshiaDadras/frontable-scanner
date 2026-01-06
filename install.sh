@@ -103,8 +103,7 @@ fi
 
 # Downloads with progress bars
 declare -A downloads=(
-  ["find_frontable.sh"]="Main scanner script (macOS)"
-  ["find_frontable_linux.sh"]="Main scanner script (Linux)"
+  ["find_frontable.sh"]="Main scanner script"
   ["py/checker.py"]="ASN checker utility"
   ["py/ASNs.json"]="ASN database"
 )
@@ -131,7 +130,6 @@ log "✔︎ All files downloaded successfully."
 # 4. Make Scripts Executable
 log "Making scripts executable…"
 chmod +x "$INSTALL_DIR/find_frontable.sh"
-chmod +x "$INSTALL_DIR/find_frontable_linux.sh"
 chmod +x "$INSTALL_DIR/py/checker.py"
 log "✔︎ Scripts are executable."
 
@@ -144,7 +142,7 @@ if [[ "$CREATE_COMMAND" =~ ^[Yy]$ ]]; then
   log "Setting up 'frontable' command…"
   if [[ "$(uname -s)" == "Darwin" || "$(uname -s)" == "Linux" ]]; then
     # Try creating a symlink in /usr/local/bin first (requires sudo)
-    if sudo ln -sf "$INSTALL_DIR/$( [[ "$(uname -s)" == "Darwin" ]] && echo "find_frontable.sh" || echo "find_frontable_linux.sh" )" /usr/local/bin/frontable 2>/dev/null; then
+    if sudo ln -sf "$INSTALL_DIR/find_frontable.sh" /usr/local/bin/frontable 2>/dev/null; then
       log "✔︎ 'frontable' command created as a symlink in /usr/local/bin. You may need to open a new terminal or run 'hash -r'."
     else
       # Fallback to shell alias if symlink fails or not preferred
@@ -157,10 +155,10 @@ if [[ "$CREATE_COMMAND" =~ ^[Yy]$ ]]; then
       fi
 
       if [[ -n "$SHELL_CONFIG" ]]; then
-        echo "alias frontable='$INSTALL_DIR/$( [[ "$(uname -s)" == "Darwin" ]] && echo "find_frontable.sh" || echo "find_frontable_linux.sh" )'" >> "$SHELL_CONFIG"
+        echo "alias frontable='$INSTALL_DIR/find_frontable.sh'" >> "$SHELL_CONFIG"
         log "✔︎ 'frontable' alias added to $SHELL_CONFIG. Please run 'source $SHELL_CONFIG' or open a new terminal."
       else
-        log "WARNING: No .bashrc or .zshrc found. Please add 'alias frontable=\"$INSTALL_DIR/$( [[ \"$(uname -s)\" == \"Darwin\" ]] && echo \"find_frontable.sh\" || echo \"find_frontable_linux.sh\" )\"' to your shell profile manually."
+        log "WARNING: No .bashrc or .zshrc found. Please add 'alias frontable=\"$INSTALL_DIR/find_frontable.sh\"' to your shell profile manually."
       fi
     fi
   fi
@@ -172,11 +170,7 @@ log "
 Installation complete! To run the Domain Fronting IP Scanner:
 "
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  echo "  cd $INSTALL_DIR && ./find_frontable.sh [--log=debug|info|quiet]"
-elif [[ "$(uname -s)" == "Linux" ]]; then
-  echo "  cd $INSTALL_DIR && ./find_frontable_linux.sh [--log=debug|info|quiet]"
-fi
+echo "  cd $INSTALL_DIR && ./find_frontable.sh [--log=debug|info|quiet]"
 
 echo "
 If you set up the 'frontable' command, you can simply type:
