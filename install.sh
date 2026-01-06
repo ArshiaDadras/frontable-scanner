@@ -72,6 +72,7 @@ need_dependency "jq" "jq" "jq" "jq"
 need_dependency "masscan" "masscan" "masscan" "masscan" # Note: masscan typically needs manual compilation or specific repo on Linux
 need_dependency "openssl" "openssl" "openssl" "openssl"
 need_dependency "curl" "curl" "curl" "curl"
+need_dependency "bc" "bc" "bc" "bc"
 
 # Timeout utility differs
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -104,7 +105,9 @@ fi
 # Downloads with progress bars
 declare -A downloads=(
   ["find_frontable.sh"]="Main scanner script"
+  ["find_fragment.sh"]="Fragment configuration tester"
   ["py/checker.py"]="ASN checker utility"
+  ["py/fragment.py"]="Fragment configuration updater"
   ["py/ASNs.json"]="ASN database"
 )
 
@@ -130,20 +133,23 @@ log "✔︎ All files downloaded successfully."
 # 4. Make Scripts Executable
 log "Making scripts executable…"
 chmod +x "$INSTALL_DIR/find_frontable.sh"
+chmod +x "$INSTALL_DIR/find_fragment.sh"
 chmod +x "$INSTALL_DIR/py/checker.py"
+chmod +x "$INSTALL_DIR/py/fragment.py"
 log "✔︎ Scripts are executable."
 
-# 5. Offer to create a persistent command
+# 5. Offer to create persistent commands
 log "
-Optional: Create a 'frontable' command for easy access.
-This will allow you to run the scanner by simply typing 'frontable' in your terminal."
-read -p "Do you want to set up the 'frontable' command? (y/N): " CREATE_COMMAND
+Optional: Create 'frontable' and 'fragment' commands for easy access.
+This will allow you to run the tools by simply typing 'frontable' or 'fragment' in your terminal."
+read -p "Do you want to set up the 'frontable' and 'fragment' commands? (y/N): " CREATE_COMMAND
 if [[ "$CREATE_COMMAND" =~ ^[Yy]$ ]]; then
-  log "Setting up 'frontable' command…"
+  log "Setting up 'frontable' and 'fragment' commands…"
   if [[ "$(uname -s)" == "Darwin" || "$(uname -s)" == "Linux" ]]; then
-    # Try creating a symlink in /usr/local/bin first (requires sudo)
-    if sudo ln -sf "$INSTALL_DIR/find_frontable.sh" /usr/local/bin/frontable 2>/dev/null; then
-      log "✔︎ 'frontable' command created as a symlink in /usr/local/bin. You may need to open a new terminal or run 'hash -r'."
+    # Try creating symlinks in /usr/local/bin first (requires sudo)
+    if sudo ln -sf "$INSTALL_DIR/find_frontable.sh" /usr/local/bin/frontable 2>/dev/null && \
+      sudo ln -sf "$INSTALL_DIR/find_fragment.sh" /usr/local/bin/fragment 2>/dev/null; then
+      log "✔︎ 'frontable' and 'fragment' commands created as symlinks in /usr/local/bin. You may need to open a new terminal or run 'hash -r'."
     else
       # Fallback to shell alias if symlink fails or not preferred
       log "Could not create symlink in /usr/local/bin (might require sudo or path not in $PATH). Attempting to set up shell alias…"
@@ -156,25 +162,32 @@ if [[ "$CREATE_COMMAND" =~ ^[Yy]$ ]]; then
 
       if [[ -n "$SHELL_CONFIG" ]]; then
         echo "alias frontable='$INSTALL_DIR/find_frontable.sh'" >> "$SHELL_CONFIG"
-        log "✔︎ 'frontable' alias added to $SHELL_CONFIG. Please run 'source $SHELL_CONFIG' or open a new terminal."
+        echo "alias fragment='$INSTALL_DIR/find_fragment.sh'" >> "$SHELL_CONFIG"
+        log "✔︎ 'frontable' and 'fragment' aliases added to $SHELL_CONFIG. Please run 'source $SHELL_CONFIG' or open a new terminal."
       else
-        log "WARNING: No .bashrc or .zshrc found. Please add 'alias frontable=\"$INSTALL_DIR/find_frontable.sh\"' to your shell profile manually."
+        log "WARNING: No .bashrc or .zshrc found. Please add aliases manually:"
+        log "  alias frontable=\"$INSTALL_DIR/find_frontable.sh\""
+        log "  alias fragment=\"$INSTALL_DIR/find_fragment.sh\""
       fi
     fi
   fi
 else
-  log "Skipping 'frontable' command setup."
+  log "Skipping command setup."
 fi
 
 log "
-Installation complete! To run the Domain Fronting IP Scanner:
+Installation complete! To run the tools:
 "
 
-echo "  cd $INSTALL_DIR && ./find_frontable.sh [--log=debug|info|quiet]"
+echo "  Domain Fronting IP Scanner:"
+echo "    cd $INSTALL_DIR && ./find_frontable.sh [--log=info|debug|quiet]"
+echo ""
+echo "  Fragment Configuration Tester:"
+echo "    cd $INSTALL_DIR && ./find_fragment.sh"
 
 echo "
-If you set up the 'frontable' command, you can simply type:
+If you set up the commands, you can simply type:
 
-  frontable [--log=debug|info|quiet]
-
+  frontable [--log=info|debug|quiet]
+  fragment
 " 
