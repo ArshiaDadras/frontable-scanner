@@ -241,16 +241,16 @@ PACKET_OPTIONS=("1-1" "1-3" "tlshello")
 
 # Generate interval ranges from Fibonacci (e.g., "1-2", "2-3", "3-5", "5-8", etc.)
 INTERVAL_RANGES=()
-for i in $(seq 0 $((${#FIBONACCI[@]} - 1))); do
-  for j in $(seq $i $((${#FIBONACCI[@]} - 1))); do
+for i in $(seq 0 $((${#FIBONACCI[@]} - 2))); do
+  for j in $(seq $((i + 1)) $((${#FIBONACCI[@]} - 1))); do
     INTERVAL_RANGES+=("${FIBONACCI[$i]}-${FIBONACCI[$j]}")
   done
 done
 
 # Generate length ranges from Fibonacci
 LENGTH_RANGES=()
-for i in $(seq 0 $((${#FIBONACCI[@]} - 1))); do
-  for j in $(seq $i $((${#FIBONACCI[@]} - 1))); do
+for i in $(seq 0 $((${#FIBONACCI[@]} - 2))); do
+  for j in $(seq $((i + 1)) $((${#FIBONACCI[@]} - 1))); do
     LENGTH_RANGES+=("${FIBONACCI[$i]}-${FIBONACCI[$j]}")
   done
 done
@@ -293,10 +293,21 @@ fi
 log info "Starting fragment configuration tests..."
 log info "Tests are randomized - stopping early will still give diverse results"
 log info "This may take a while..."
+log info "Press CTRL+C to stop testing and see results from completed tests"
+
+# Setup graceful shutdown on CTRL+C
+INTERRUPTED=false
+trap 'INTERRUPTED=true; log warn "Interrupt received. Will stop after current test..."' SIGINT
 
 CURRENT_TEST=0
 
 for config in "${SHUFFLED_CONFIGS[@]}"; do
+  # Check if interrupted by CTRL+C
+  if [[ "$INTERRUPTED" == true ]]; then
+    log info "Stopping tests early due to interrupt"
+    break
+  fi
+  
   CURRENT_TEST=$((CURRENT_TEST + 1))
   
   # Parse config
@@ -307,7 +318,7 @@ for config in "${SHUFFLED_CONFIGS[@]}"; do
   echo ""
   log info "Progress: ${CURRENT_TEST}/${TOTAL_TESTS}"
   
-  score=$(test_fragment_config "$interval" "$length" "$packets")
+  score=$(test_fragment_config "$interval" "$length" "$packets") || true
   
   if [[ $score -gt $BEST_SCORE ]]; then
     BEST_SCORE=$score
@@ -315,12 +326,15 @@ for config in "${SHUFFLED_CONFIGS[@]}"; do
     log success "New best configuration found! Score: $(echo "scale=2; $score / 100" | bc)"
   fi
   
-  # Small delay between tests
-  sleep 2
+  # Small delay between tests (allow interrupt during sleep)
+  sleep 2 || true
 done
 
+# Disable trap after loop
+trap - SIGINT
+
 ######################## Restore Original Config ####################################
-cp "$BACKUP_CONFIG" "$V2RAY_CONFIG"
+cp "$BACKUP_CONFIG" "$V2RAY_CONFIG" && rm "$BACKUP_CONFIG"
 log info "Restored original config"
 
 ######################## Summary ####################################
