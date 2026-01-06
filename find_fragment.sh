@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# find_best_fragment.sh — Test different fragment configurations to find the best one
+# find_fragment.sh — Test different fragment configurations
 
 set -euo pipefail
 
@@ -264,8 +264,6 @@ for interval in "${INTERVAL_RANGES[@]}"; do
     done
   done
 done
-
-# TEST_CONFIGS=("2-8|8-34|1-1" "2-8|8-34|1-1" "2-8|8-34|1-1" "2-8|8-34|1-1" "2-8|8-34|1-1")
 
 TOTAL_TESTS=${#TEST_CONFIGS[@]}
 log info "Generated $TOTAL_TESTS test configurations"
