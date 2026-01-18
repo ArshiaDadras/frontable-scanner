@@ -94,7 +94,7 @@ fi
 log info "Using binary: $V2RAY_BINARY"
 
 ######################## Setup Results ####################################
-RESULTS_DIR="$(pwd)/fragment-test-results"
+RESULTS_DIR="$(pwd)/output/fragment"
 mkdir -p "$RESULTS_DIR"
 RESULTS_FILE="$RESULTS_DIR/results-$(date +%F-%H%M%S).txt"
 
