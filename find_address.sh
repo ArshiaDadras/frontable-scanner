@@ -109,9 +109,9 @@ echo "# Address Test Results" > "$RESULTS_FILE"
 echo "# Test Date: $(date)" >> "$RESULTS_FILE"
 echo "# Original Config: $V2RAY_CONFIG" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
-printf "%s %-12s %-12s %-12s %s\n" \
+printf "%-15s %-12s %-12s %-12s %s\n" \
   "Address" "Success" "Avg Speed" "Avg Latency" "Score" >> "$RESULTS_FILE"
-echo "--------------------------------------------------------------------------------" >> "$RESULTS_FILE"
+echo "-----------------------------------------------------------------" >> "$RESULTS_FILE"
 
 ######################## Test Function ####################################
 test_address_config() {
@@ -221,7 +221,7 @@ test_address_config() {
   local score=$(echo "scale=2; ($success_rate * 0.5) + ($speed_normalized * 0.3) + ($latency_score * 0.2)" | bc)
   
   # Log results
-  printf "%s %-12s %-12s %-12s %.2f\n" \
+  printf "%-15s %-12s %-12s %-12s %.2f\n" \
     "$address" "${success_rate}%" "${avg_speed}KB/s" "${avg_latency}ms" "$score" \
     >> "$RESULTS_FILE"
   
