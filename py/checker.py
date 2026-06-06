@@ -7,8 +7,8 @@ def get_cidrs(asns_data, target_asn=None):
     cidrs = []
     if target_asn:
         found_asn = False
-        for asn_id, data in asns_data.items():
-            if asn_id == target_asn:
+        for _, data in asns_data.items():
+            if data.get('id') == target_asn:
                 for cidr in data['netblocks'].keys():
                     cidrs.append(cidr)
                 found_asn = True
@@ -16,17 +16,14 @@ def get_cidrs(asns_data, target_asn=None):
         if not found_asn:
             print(f"Warning: ASN {target_asn} not found in ASNs.json.", file=sys.stderr)
     else:
-        for asn_id, asn_data in asns_data.items():
+        for _, asn_data in asns_data.items():
             for cidr in asn_data['netblocks'].keys():
                 cidrs.append(cidr)
     return cidrs
 
 def list_asns(asns_data):
     """List all ASN names in the format 'AS<number> <organization>'"""
-    asn_names = []
-    for asn_id, data in asns_data.items():
-        org_name = data.get('name', 'Unknown Organization')
-        asn_names.append(f"{asn_id} {org_name}")
+    asn_names = [asn_key for asn_key in asns_data]
     return sorted(asn_names)
 
 if __name__ == '__main__':
